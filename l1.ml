@@ -1,18 +1,18 @@
 type variable = string
 
-(* Outros operadores binário e unários podem ser adicionados a linguagem *) 
+(* Outros operadores binário e unários podem ser adicionados a linguagem *)
 
 type operator = Sum | Diff | Mult | Div | Eq | Neq | Leq | Less | Geq | Greater | Or | And
 
 type tipo  = TyInt | TyBool | TyFn of tipo * tipo | TyList of tipo | TyId of string
 
-type expr = Num of int 
-          | Bool of bool 
+type expr = Num of int
+          | Bool of bool
           | Bop of operator * expr * expr
-          | If of expr * expr * expr 
-          | Var of variable 
-          | App of expr * expr 
-          | Lam of variable * tipo * expr 
+          | If of expr * expr * expr
+          | Var of variable
+          | App of expr * expr
+          | Lam of variable * tipo * expr
           | Let of variable * tipo * expr * expr
           | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
           | Nil                   (* Expressões adicionadas a partir daqui *)
@@ -27,8 +27,8 @@ type expr = Num of int
           | LetI of variable * expr * expr
           | LrecI of variable * variable * expr * expr
 
-type value = Vnum of int 
-           | Vbool of bool 
+type value = Vnum of int
+           | Vbool of bool
            | Vclos of variable * expr * env
            | Vrclos of variable * variable * expr * env
            | Vnil                     (* Valores adicionados a partir daqui *)
@@ -48,12 +48,12 @@ let uvargen =
 exception NoRuleApplies of string
 
 (* AVALIADOR BIG STEP *)
-let rec _eval (contexto : env) (e : expr) = ( match e with 
-    
+let rec _eval (contexto : env) (e : expr) = ( match e with
+
     (* BS-NUM *)
     Num(n) -> Vnum(n)
     (* BS-BOOL*)
-    | Bool(b) -> Vbool(b) 
+    | Bool(b) -> Vbool(b)
     (* BS-OP *)
     | Bop(op, e1, e2) -> (
         let e1' = _eval contexto e1 in
@@ -77,7 +77,7 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
         )
     )
     (* BS-IF *)
-    | If(e1, e2, e3) -> ( 
+    | If(e1, e2, e3) -> (
         let e1' = _eval contexto e1 in (
             match e1' with
               (Vbool true) -> _eval contexto e2
@@ -96,7 +96,7 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
             | (Vclos(x, e, env'), v) -> _eval ((x,v)::env') e
             | (Vrclos(f, x, e, env'), v) -> _eval ((x,v)::(f,Vrclos(f,x,e,env'))::env') e
             | (Raise,_) -> Raise
-            | (_,Raise) -> Raise 
+            | (_,Raise) -> Raise
             | _ -> raise (NoRuleApplies "Application Error")
         )
     )
@@ -128,7 +128,7 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
             match (e1', e2') with
             | (Raise,_) -> Raise
             | (_,Raise) -> Raise
-            | _ -> Vcons(e1',e2') 
+            | _ -> Vcons(e1',e2')
         )
     )
     (* BS-ISEMPTY *)
@@ -147,7 +147,7 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
             match e' with
             | Vcons(v1,v2) -> v1
             | Vnil -> Raise
-            | Raise -> Raise 
+            | Raise -> Raise
             | _ -> raise (NoRuleApplies "Invalid list")
         )
     )
@@ -157,7 +157,7 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
             match e' with
             | Vcons(v1,v2) -> v2
             | Vnil -> Raise
-            | Raise -> Raise 
+            | Raise -> Raise
             | _ -> raise (NoRuleApplies "Invalid list")
         )
     )
@@ -168,14 +168,60 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
         let e1' = _eval contexto e1 in (
             match e1' with
             | Raise -> _eval contexto e2
-            | _ -> e1' 
+            | _ -> e1'
         )
     )
 )
 
 let eval e = _eval [] e
 
+(* Transforma um tipo em uma STRING *)
+let rec tipoToString (tp:tipo) : string =
+  match tp with
+  | TyBool -> "bool"
+  | TyInt  -> "int"
+  | TyList a -> (tipoToString a) ^ " list"
+  | TyFn(tp1,tp2) -> "(" ^ (tipoToString tp1) ^ " -> " ^ (tipoToString tp2) ^ ")"
+  | TyId(tp) -> "TyId"
+;;
 
+(* Transforma uma expressao em uma STRING *)
+let rec exprToString (t:expr) : string =
+  match t with
+  | Num(x) -> string_of_int x
+  | Bool(true) -> "true"
+  | Bool(false) -> "false"
+  | Hd(t1) -> "( Head " ^ (exprToString t1) ^ ")"
+  | Tl(t1) -> "( Tail " ^ (exprToString t1) ^ ")"
+  | IsEmpty (t1) -> "( IsEmpty " ^ (exprToString t1) ^ ")"
+  | Bop(Sum,t1,t2) -> "(" ^ (exprToString t1) ^ " + " ^ (exprToString t2) ^ ")"
+  | Bop(Eq,t1,t2) -> "(" ^ (exprToString t1) ^ " == " ^ (exprToString t2) ^ ")"
+  | Bop(Diff,t1,t2) -> "(" ^ (exprToString t1) ^ " - " ^ (exprToString t2) ^ ")"
+  | Bop(Mult,t1,t2) -> "(" ^ (exprToString t1) ^ " * " ^ (exprToString t2) ^ ")"
+  | Bop(Div,t1,t2) -> "(" ^ (exprToString t1) ^ " / " ^ (exprToString t2) ^ ")"
+  | Bop(Neq,t1,t2) -> "(" ^ (exprToString t1) ^ " != " ^ (exprToString t2) ^ ")"
+  | Bop(Leq,t1,t2) -> "(" ^ (exprToString t1) ^ " <= " ^ (exprToString t2) ^ ")"
+  | Bop(Less,t1,t2) -> "(" ^ (exprToString t1) ^ " < " ^ (exprToString t2) ^ ")"
+  | Bop(Geq,t1,t2) -> "(" ^ (exprToString t1) ^ " >= " ^ (exprToString t2) ^ ")"
+  | Bop(Greater,t1,t2) -> "(" ^ (exprToString t1) ^ " > " ^ (exprToString t2) ^ ")"
+  | Bop(Or,t1,t2) -> "(" ^ (exprToString t1) ^ " || " ^ (exprToString t2) ^ ")"
+  | Bop(And,t1,t2) -> "(" ^ (exprToString t1) ^ " && " ^ (exprToString t2) ^ ")"
+  | If(t1,t2,t3) -> "(if " ^ (exprToString t1) ^ " then " ^ (exprToString t2) ^ " else " ^ (exprToString t3) ^ ")"
+  | Var(x) -> x
+  | App(t1,t2) -> "(" ^ (exprToString t1) ^ " " ^ (exprToString t2) ^ ")"
+  | Lam(x,tp,t1) -> "(fun " ^ x ^ ":" ^ (tipoToString tp) ^ "=>" ^ (exprToString t1) ^ ")"
+  | Let(x,tp,t1,t2) -> "(let " ^ x ^ ":" ^ (tipoToString tp) ^ "=" ^ (exprToString t1) ^ " in " ^ (exprToString t2) ^ ")"
+  | Lrec(x,tp,t1,t2,t3,t4,t5) -> "(let rec " ^ x ^ ":" ^ (tipoToString tp) ^ "->" ^ (tipoToString t1) ^ " = (fn )" ^ t2 ^ ":" ^(tipoToString t3) ^ (exprToString t4) ^ " in " ^ (exprToString t5) ^ ")"
+  | LamI(t1,t2) -> "(fun " ^ t1 ^ "=>" ^ (exprToString t2) ^ ")"
+  | LetI(t1,t2,t3) -> "(let " ^ t1 ^ "=" ^ (exprToString t2) ^ " in " ^ (exprToString t3) ^ ")"
+  | LrecI(t1,t2,t3,t4) -> "(let rec " ^ t1 ^ " = (fn )" ^ t2  ^ (exprToString t3) ^ " in " ^ (exprToString t4) ^ ")"
+  | Nil -> "Nil";
+  | Raise -> "Raise";
+  | Cons(a,b) -> "(" ^ (exprToString a) ^ "::" ^ (exprToString b) ^ ")"
+  | TryWith(a,b) -> "(try" ^ (exprToString a) ^ " with " ^ (exprToString b) ^ ")"
+;;
+
+(* Only god knows *)
 let rec recon ctx nextuvar t = match t with
   | App(t1,t2) ->
     let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
@@ -289,3 +335,6 @@ let e1 = (Lrec("fat", TyInt, TyInt, "x", TyInt,
     App(Var("fat"), Num(5))))
 
 let e2 = Cons(Bop(Sum,Num(5),Num(2)),(Cons(Num(1),Nil)))
+
+let teste = eval(e2)
+let teste1 = print_endline(exprToString e1);
