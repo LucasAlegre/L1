@@ -221,11 +221,18 @@ let rec exprToString (t:expr) : string =
   | TryWith(a,b) -> "(try" ^ (exprToString a) ^ " with " ^ (exprToString b) ^ ")"
 ;;
 
+let rec listToString (lista: (tipo * tipo) list) =  match lista with
+    | (head::tail) ->
+        (match head with
+          | t1, t2 -> print_endline ("(" ^ (tipoToString t1) ^ " --- " ^ (tipoToString t2) ^ ")"))
+        ;
+        listToString tail;
+    | [] -> ();;
 (* Only god knows *)
-let rec recon ctx nextuvar t = match t with
+let rec _recon ctx nextuvar (t:expr) = match t with
   | App(t1,t2) ->
-    let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
-    let (tyT2,nextuvar2,constr2) = recon ctx nextuvar1 t2 in
+    let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
+    let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar1 t2 in
     let NextUVar(tyX,nextuvar') = nextuvar2() in
     let newconstr = [(tyT1,TyFn(tyT2,TyId(tyX)))] in
     ((TyId(tyX)), nextuvar',
@@ -233,9 +240,9 @@ let rec recon ctx nextuvar t = match t with
   | Num(t) -> (TyInt, nextuvar, [])
   | Bool(t) -> (TyBool, nextuvar, [])
   | If(t1,t2,t3) ->
-      let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
-      let (tyT2,nextuvar2,constr2) = recon ctx nextuvar1 t2 in
-      let (tyT3,nextuvar3,constr3) = recon ctx nextuvar2 t3 in
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
+      let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar1 t2 in
+      let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar2 t3 in
       let newconstr = [(tyT1,TyBool); (tyT2,tyT3)] in
       (tyT3, nextuvar3,
       List.concat [newconstr; constr1; constr2; constr3])
@@ -246,78 +253,87 @@ let rec recon ctx nextuvar t = match t with
     let NextUVar(tyX,nextuvar') = nextuvar() in
     (TyList(TyId(tyX)), nextuvar', [])
   | IsEmpty(t) ->
-      let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t in
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t in
       let NextUVar(tyX,nextuvar') = nextuvar1() in
       let newconstr = [(tyT1,TyList(TyId(tyX)))] in
         ((TyId(tyX)), nextuvar',
         List.concat [newconstr; constr1])
   | TryWith(t1,t2) ->
-      let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
-      let (tyT2,nextuvar2,constr2) = recon ctx nextuvar1 t2 in
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
+      let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar1 t2 in
       let newconstr = [(tyT1,tyT2)] in
       (tyT2, nextuvar2,
       List.concat [newconstr; constr1; constr2])
   | Hd(t1) ->
-      let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
       let NextUVar(tyX,nextuvar') = nextuvar1() in
       let newconstr = [(tyT1,TyList(TyId(tyX)))] in
       ((TyId(tyX)), nextuvar',
       List.concat [newconstr; constr1])
   | Tl(t1) ->
-      let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
       let NextUVar(tyX,nextuvar') = nextuvar1() in
       let newconstr = [(tyT1,TyList(TyId(tyX)))] in
       ((TyId(tyX)), nextuvar',
       List.concat [newconstr; constr1])
   | Cons(t1,t2) ->
-      let (tyT1,nextuvar1,constr1) = recon ctx nextuvar t1 in
-      let (tyT2,nextuvar2,constr2) = recon ctx nextuvar1 t2 in
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
+      let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar1 t2 in
       let newconstr = [(TyList tyT1,tyT2)] in
       (tyT2, nextuvar2,
       List.concat [newconstr; constr1; constr2])
   | Let(t1,t2,t3,t4) ->
-      let (tyT3,nextuvar3,constr3) = recon ctx nextuvar t3 in
-      let (tyT4,nextuvar4,constr4) = recon ctx nextuvar3 t4 in
+      let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar t3 in
+      let (tyT4,nextuvar4,constr4) = _recon ctx nextuvar3 t4 in
       let newconstr = [(t2, tyT3)] in
       (tyT4, nextuvar4,
       List.concat [newconstr; constr3; constr4])
   | Lrec(t1,t2,t3,t4,t5,t6,t7) ->
-      let (tyT6,nextuvar6,constr6) = recon ctx nextuvar t6 in
-      let (tyT7,nextuvar7,constr7) = recon ctx nextuvar6 t7 in
+      let (tyT6,nextuvar6,constr6) = _recon ctx nextuvar t6 in
+      let (tyT7,nextuvar7,constr7) = _recon ctx nextuvar6 t7 in
       let newconstr = [(t3, tyT6)] in
       (tyT7, nextuvar7,
       List.concat [newconstr; constr6; constr7])
   | LetI(t1,t2,t3) ->
-      let (tyT2,nextuvar2,constr2) = recon ctx nextuvar t2 in
-      let (tyT3,nextuvar3,constr3) = recon ctx nextuvar2 t3 in
+      let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar t2 in
+      let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar2 t3 in
       let NextUVar(tyX,nextuvar') = nextuvar3() in
       let newconstr = [(TyId(tyX), tyT3)] in
       ((TyId(tyX)), nextuvar',
       List.concat [newconstr; constr2; constr3])
   | LrecI(t1,t2,t3,t4) ->
-      let (tyT3,nextuvar3,constr3) = recon ctx nextuvar t3 in
-      let (tyT4,nextuvar4,constr4) = recon ctx nextuvar3 t4 in
+      let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar t3 in
+      let (tyT4,nextuvar4,constr4) = _recon ctx nextuvar3 t4 in
       let NextUVar(tyX,nextuvar') = nextuvar4() in
       let newconstr = [(TyId(tyX), tyT3)] in
       ((TyId(tyX)), nextuvar',
       List.concat [newconstr; constr3; constr4])
+  | Lam(v1,t1,e1) ->
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar e1 in
+      (tyT1, nextuvar1,
+      List.concat [constr1])
+  | LamI(v1,e1) ->
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar e1 in
+      (tyT1, nextuvar1,
+      List.concat [constr1])
+  | Var(e1) -> (TyInt, nextuvar, []) (* NÃO TENHO IDEIA DE QUAL É A REGRA PARA VAR *)
   | Bop(t1,t2,t3) -> (
       match t1 with
         | Sum ->
-            let (tyT2,nextuvar2,constr2) = recon ctx nextuvar t2 in
-            let (tyT3,nextuvar3,constr3) = recon ctx nextuvar2 t3 in
+            let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar2 t3 in
             let newconstr = [(tyT2, TyInt);(tyT2, TyInt)] in
             (tyT3, nextuvar3,
             List.concat [newconstr; constr2; constr3])
         | _  ->
-            let (tyT2,nextuvar2,constr2) = recon ctx nextuvar t2 in
-            let (tyT3,nextuvar3,constr3) = recon ctx nextuvar2 t3 in
+            let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar2 t3 in
             let newconstr = [(tyT2, TyInt);(tyT2, TyInt)] in
             (tyT3, nextuvar3,
             List.concat [newconstr; constr2; constr3])
         )
 
-
+let recon ctx e = _recon ctx uvargen e
 let getbinding (ctx) (i) =
   List.nth ctx i
 
@@ -336,5 +352,8 @@ let e1 = (Lrec("fat", TyInt, TyInt, "x", TyInt,
 
 let e2 = Cons(Bop(Sum,Num(5),Num(2)),(Cons(Num(1),Nil)))
 
-let teste = eval(e2)
-let teste1 = print_endline(exprToString e1);
+let e3 = If(IsEmpty(Nil),Bool(true),Bool(false))
+(*let teste = eval(e2);;
+let teste1 = print_endline(exprToString e1);;*)
+let (teste2, nextuvar, constr) = recon [] e3;;
+let teste3 = (listToString constr);;
