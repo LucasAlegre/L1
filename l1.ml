@@ -36,7 +36,8 @@ type value = Vnum of int
            | Raise    (* Raise NÂO DEVIA SER VALOR, MAS NÃO SEI COMO FAZER *)
 and
      env = (variable * value) list
-
+and
+     tyenv = (variable * tipo) list
 
 type nextuvar = NextUVar of string * uvargenerator
 and uvargenerator = unit -> nextuvar
@@ -251,7 +252,7 @@ let rec listToString (lista: (tipo * tipo) list) =  match lista with
 
 
 (* Only god knows *)
-let rec _recon (ctx:env) nextuvar (t:expr) = match t with
+let rec _recon (ctx:tyenv) nextuvar (t:expr) = match t with
   | App(t1,t2) ->
     let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar t1 in
     let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar1 t2 in
@@ -305,55 +306,56 @@ let rec _recon (ctx:env) nextuvar (t:expr) = match t with
       (tyT2, nextuvar2,
       List.concat [newconstr; constr1; constr2])
   | Let(var1,t2,expr1,expr2) ->
-      let (tyT3,nextuvar3,constr3) = _recon ctx nextuvar expr1 in
-      let newtipo = _eval ctx expr1 in
-      let newctx = [(var1,newtipo)] in
-      let (tyT4,nextuvar4,constr4) = _recon (List.concat [newctx;ctx]) nextuvar3 expr2 in
-      let newconstr = [(t2, tyT3)] in
-      (tyT4, nextuvar4,
-      List.concat [newconstr; constr3; constr4])
+      let (tyT1,nextuvar1,constr1) = _recon ctx nextuvar expr1 in
+      let NextUVar(tyX1,nextuvar2) = nextuvar1() in
+      let newctx = [(var1,TyId(tyX1))] in
+      let (tyT2,nextuvar3,constr2) = _recon (List.concat [newctx;ctx]) nextuvar2 expr2 in
+      let newconstr = [(t2, tyT1)] in
+      (tyT2, nextuvar3,
+      List.concat [newconstr; constr1; constr2])
   | Lrec(var1,t1,t2,var2,t3,expr1,expr2) ->
-      let firstctx = [(var1, Vrclos(var1,var2,expr1, ctx))] in
-      let secondctx = [(var2, Vclos(var2,expr1, (List.concat [firstctx;ctx])))] in
-      let (tyT6,nextuvar6,constr6) = _recon (List.concat [secondctx;firstctx;ctx]) nextuvar expr1 in
-      let (tyT7,nextuvar7,constr7) = _recon (List.concat [firstctx;ctx]) nextuvar6 expr2 in
-      let newconstr = [(t3, tyT6)] in
-      (tyT7, nextuvar7,
-      List.concat [newconstr; constr6; constr7])
+      let firstctx = [(var1, TyFn(t1,t2))] in
+      let secondctx = [(var2, t3)] in
+      let (tyT1,nextuvar1,constr1) = _recon (List.concat [secondctx;firstctx;ctx]) nextuvar expr1 in
+      let (tyT2,nextuvar2,constr2) = _recon (List.concat [firstctx;ctx]) nextuvar1 expr2 in
+      let newconstr = [(t3, tyT1)] in
+      (tyT2, nextuvar2,
+      List.concat [newconstr; constr1; constr2])
   | LetI(var1,expr1,expr2) ->
-      let (tyT2,nextuvar2,constr2) = _recon ctx nextuvar expr1 in
-      let newtipo = _eval ctx expr1 in
-      let newctx = [(var1,newtipo)] in
+      let (tyT2,nextuvar1,constr2) = _recon ctx nextuvar expr1 in
+      let NextUVar(tyX1,nextuvar2) = nextuvar1() in
+      let newctx = [(var1,TyId(tyX1))] in
       let (tyT3,nextuvar3,constr3) = _recon (List.concat [newctx;ctx]) nextuvar2 expr2 in
-      let NextUVar(tyX,nextuvar') = nextuvar3() in
+      let NextUVar(tyX,nextuvar4) = nextuvar3() in
       let newconstr = [(TyId(tyX), tyT3)] in
-      ((TyId(tyX)), nextuvar',
+      ((TyId(tyX)), nextuvar4,
       List.concat [newconstr; constr2; constr3])
   | LrecI(var1,var2,expr1,expr2) ->
-      let firstctx = [(var1, Vrclos(var1,var2,expr1, ctx))] in
-      let secondctx = [(var2, Vclos(var2,expr1, (List.concat [firstctx;ctx])))] in
-      let (tyT3,nextuvar3,constr3) = _recon (List.concat [secondctx;firstctx;ctx]) nextuvar expr1 in
+      let NextUVar(tyX1,nextuvar1) = nextuvar() in
+      let firstctx = [(var1, TyId(tyX1))] in
+      let NextUVar(tyX2,nextuvar2) = nextuvar1() in
+      let secondctx = [(var2, TyId(tyX2))] in
+      let (tyT3,nextuvar3,constr3) = _recon (List.concat [secondctx;firstctx;ctx]) nextuvar2 expr1 in
       let (tyT4,nextuvar4,constr4) = _recon (List.concat [firstctx;ctx]) nextuvar3 expr2 in
-      let NextUVar(tyX,nextuvar') = nextuvar4() in
+      let NextUVar(tyX,nextuvar5) = nextuvar4() in
       let newconstr = [(TyId(tyX), tyT3)] in
-      ((TyId(tyX)), nextuvar',
+      ((TyId(tyX)), nextuvar5,
       List.concat [newconstr; constr3; constr4])
   | Lam(v1,t1,e1) ->
-      let newvalue = _eval ctx e1 in
-      let newctx = [(v1,newvalue)] in
+      let newctx = [(v1,t1)] in
       let (tyT1,nextuvar1,constr1) = _recon (List.concat [newctx;ctx]) nextuvar e1 in
       (tyT1, nextuvar1,
       List.concat [constr1])
   | LamI(v1,e1) ->
-      let newvalue = _eval ctx e1 in
-      let newctx = [(v1,newvalue)] in
-      let (tyT1,nextuvar1,constr1) = _recon (List.concat [newctx;ctx]) nextuvar e1 in
-      (tyT1, nextuvar1,
+      let NextUVar(tyX1,nextuvar1) = nextuvar() in
+      let newctx = [(v1,TyId(tyX1))] in
+      let (tyT1,nextuvar2,constr1) = _recon (List.concat [newctx;ctx]) nextuvar1 e1 in
+      (tyT1, nextuvar2,
       List.concat [constr1])
   | Var(e1) ->
     (try (let term = (snd (List.find (fun (variable, _) -> String.compare variable e1 == 0) ctx)) in
     (match term with
-     | (t1) -> (valueToTipo t1 , nextuvar, []))) (* NÃO TENHO IDEIA DE QUAL É A REGRA PARA VAR *)
+     | _ -> (term, nextuvar, []))) (* NÃO TENHO IDEIA DE QUAL É A REGRA PARA VAR *)
    with _ -> (TyId("Nao achou no contexto"), nextuvar, []))
   | Bop(t1,t2,t3) -> (
       (match t1 with
