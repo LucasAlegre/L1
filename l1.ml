@@ -374,6 +374,65 @@ let rec _recon (ctx:tyenv) nextuvar (t:expr) = match t with
         )
 
 let recon ctx e = _recon ctx uvargen e
+
+(***** UNIFY *****)
+exception UnifyFailed of string
+
+(* Funções auxiliares *)
+(* Substitui X por T no tipo S*)
+let substitutionInType tyX tyT tyS =
+  let rec subs tyS = match tyS with
+    | TyList(tyS1) -> TyList(subs tyS1)
+    | TyFn(tyS1, tyS2) -> TyFn(subs tyS1, subs tyS2)
+    | TyInt -> TyInt
+    | TyBool -> TyBool
+    | TyId(s) -> (if s=tyX then tyT else TyId(s)) (* se for X, troca por T*)
+  in subs tyS
+
+(* Chama a substituição de tyX por tyT para cada equação do conjunto*)
+let sustitutionInTyEquation tyX tyT tyEquations = 
+  List.map (fun (tyS1,tyS2) -> (substitutionInType tyX tyT tyS1, substitutionInType tyX tyT tyS2)) tyEquations
+
+(* Verifica se o tipo X ocorre em T*)
+let occurCheck tyX tyT =
+  let rec occur tyT = match tyT with
+    | TyList(tyT1) -> occur tyT1
+    | TyFn(tyT1,tyT2) -> occur tyT1 || occur tyT2
+    | TyInt -> false
+    | TyBool -> false
+    | TyId(s) -> (s=tyX) (* define se X ocorre ou não em T*)
+  in occur tyT
+
+(* Função de Unify *)
+(* Recebe as equações de tipo em tyEquations e retorna as substituições de tipo*)
+(* let tySubstitutions = unify tyEquations *)
+let unify tyEquations =
+  let rec unify_rec tyEquations = match tyEquations with
+    | [] -> []
+    | (TyInt,TyInt) :: tail -> unify_rec tail (* Caso 1 *)
+    | (TyBool,TyBool) :: tail -> unify_rec tail (* Caso 2 *)
+    | (TyId(tyX),tyT) :: tail -> (* Caso 4 *)
+        if tyT = TyId(tyX) then unify_rec tail (* Caso 3 *)
+        else if occurCheck tyX tyT then (* Se X ocorre em T, não é uma equação válida*)
+          raise (UnifyFailed "occurCheck didn't pass: circular type")
+        else (* Se não, faz a substituição de X por T no resto das equações e chama o Unify novamente. Ainda, adiciona na lista de substituições (X,T)*)
+          List.append (unify_rec (sustitutionInTyEquation tyX tyT tail)) [(TyId(tyX),tyT)]
+    | (tyT,TyId(tyX)) :: tail -> (* Caso 5 *)
+        if tyT = TyId(tyX) then unify_rec tail (* Caso 3 *)
+        else if occurCheck tyX tyT then (* Se X ocorre em T, não é uma equação válida*)
+          raise (UnifyFailed "occurCheck didn't pass: circular type")
+        else (* Se não, faz a substituição de X por T no resto das equações e chama o Unify novamente. Ainda, adiciona na lista de substituições (X,T)*)
+          List.append (unify_rec (sustitutionInTyEquation tyX tyT tail)) [(TyId(tyX),tyT)]
+    | (TyFn(tyT1,tyT2),TyFn(tyT3,tyT4)) :: tail -> unify_rec ((tyT1,tyT3) :: (tyT2,tyT4) :: tail) (* Caso 6 *)
+    | (TyList(tyT1),TyList(tyT2)) :: tail -> unify_rec ((tyT1,tyT2) :: tail) (* Caso 7 *)
+    | (tyS,tyT)::tail -> raise (UnifyFailed "Not possible to solve type equations")
+  in unify_rec tyEquations
+
+
+let applysubst tyEquations tyT =
+  List.fold_left (fun tyS (TyId(tyX),tyC2) -> substitutionInType tyX tyC2 tyS) tyT (List.rev tyEquations)
+
+
 let getbinding (ctx) (i) =
   List.nth ctx i
 
@@ -406,13 +465,14 @@ let e8 = Bop(Sum, Num(5), Nil)
 
 let allEs = [e1;e2;e3;e4;e5;e6;e7;e8];;
 
-
 let rec runAll e = match e with
   | (hd::tl) ->
     (match hd with
       | head -> let (teste, nextuvar, constr) = recon [] hd in
         print_endline "=== NEXT TEST ===";
         listToString constr;
+        print_endline "==";
+        (let tySubstitutions = unify constr in listToString tySubstitutions);
         runAll tl)
   | [] -> ();;
 
