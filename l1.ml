@@ -360,20 +360,80 @@ let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expres
    with _ -> raise (UndeclaredVariable "Didn't found variable in context"))
   | Bop(t1,t2,t3) -> (
       (match t1 with
+        | Eq ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Neq ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Leq ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Less ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Geq ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Greater ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Or ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | And ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyBool, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
         | Sum ->
             let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
             let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
             let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
-            (tyT3, nextuvar3,
+            (TyInt, nextuvar3,
             List.concat [newconstr; constr2; constr3])
-        | _  ->
+        | Diff ->
             let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
             let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
-            let newconstr = [(tyT2, TyInt);(tyT2, TyInt)] in
-            (tyT3, nextuvar3,
-            List.concat [newconstr; constr2; constr3]))
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyInt, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Mult ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyInt, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
+        | Div ->
+            let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
+            let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
+            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            (TyInt, nextuvar3,
+            List.concat [newconstr; constr2; constr3])
         )
-
+)
 let collectTyEqs tyEnvironment expression = collectTyEqs_rec tyEnvironment uvargen expression
 
 (***** UNIFY *****)
@@ -391,7 +451,7 @@ let substitutionInType tyX tyT tyS =
   in subs tyS
 
 (* Chama a substituição de tyX por tyT para cada equação do conjunto*)
-let sustitutionInTyEquation tyX tyT tyEquations = 
+let sustitutionInTyEquation tyX tyT tyEquations =
   List.map (fun (tyS1,tyS2) -> (substitutionInType tyX tyT tyS1, substitutionInType tyX tyT tyS2)) tyEquations
 
 (* Verifica se o tipo X ocorre em T*)
@@ -438,7 +498,7 @@ let applySubs tySubstitutions tyT =
 
 
 (*** TypeInfer ***)
-let typeInfer tyEnvironment expression = 
+let typeInfer tyEnvironment expression =
   let tyT, nextuvar, tyEquations = collectTyEqs tyEnvironment expression in
     let  tySubstitutions = unify tyEquations in
       applySubs tySubstitutions tyT
@@ -470,7 +530,7 @@ let e7 = Bop(Sum,Num(5),Num(10))
 
 let e8 = Bop(Sum, Num(5), Nil)
 
-let allEs = [e5];;
+let allEs = [e1];;
 
 let rec runAll e = match e with
   | (hd::tl) ->
