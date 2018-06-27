@@ -251,6 +251,7 @@ let rec listToString (lista: (tipo * tipo) list) =  match lista with
     | [] -> ();;
 
 
+
 (* Only god knows *)
 let rec _recon (ctx:tyenv) nextuvar (t:expr) = match t with
   | App(t1,t2) ->
@@ -428,9 +429,16 @@ let unify tyEquations =
     | (tyS,tyT)::tail -> raise (UnifyFailed "Not possible to solve type equations")
   in unify_rec tyEquations
 
+(* Aplica as substituições obtidas no Unify no tipo obtido pelo collectTyEqs *)
+(* List.fold_left f a [b1; ...; bn] is f (... (f (f a b1) b2) ...) bn *)
+let applySubs tySubstitutions tyT =
+  List.fold_left (fun tyS (TyId(tyX),tyC2) -> substitutionInType tyX tyC2 tyS) tyT (List.rev tySubstitutions)
 
-let applysubst tyEquations tyT =
-  List.fold_left (fun tyS (TyId(tyX),tyC2) -> substitutionInType tyX tyC2 tyS) tyT (List.rev tyEquations)
+let typeInfer context expression = 
+  let tyT, nextuvar, tyEquations = recon context expression in
+    let  tySubstitutions = unify tyEquations in
+      applySubs tySubstitutions tyT
+
 
 
 let getbinding (ctx) (i) =
@@ -463,7 +471,7 @@ let e7 = Bop(Sum,Num(5),Num(10))
 
 let e8 = Bop(Sum, Num(5), Nil)
 
-let allEs = [e1;e2;e3;e4;e5;e6;e7;e8];;
+let allEs = [e5];;
 
 let rec runAll e = match e with
   | (hd::tl) ->
@@ -476,6 +484,14 @@ let rec runAll e = match e with
         runAll tl)
   | [] -> ();;
 
+let rec runAll2 e = match e with
+  | (hd::tl) ->
+    (match hd with
+      | head -> let tyT = typeInfer [] hd in
+        print_endline "=== NEXT TEST ===";
+        print_endline (tipoToString tyT);
+        runAll2 tl)
+  | [] -> ();;
 (*let teste = eval(e2);;
 let teste1 = print_endline(exprToString e1);;
 let (teste2, nextuvar, constr) = recon [] e5;;
