@@ -252,7 +252,7 @@ let rec listToString (lista: (tipo * tipo) list) =  match lista with
 
 exception UndeclaredVariable of string
 
-(* Only god knows *)
+(* Now i know *)
 let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expression with
   | App(t1,t2) ->
     let (tyT1,nextuvar1,constr1) = collectTyEqs_rec tyEnv nextuvar t1 in
@@ -399,13 +399,13 @@ let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expres
         | Or ->
             let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
             let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
-            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            let newconstr = [(tyT2, TyBool);(tyT3, TyBool)] in
             (TyBool, nextuvar3,
             List.concat [newconstr; constr2; constr3])
         | And ->
             let (tyT2,nextuvar2,constr2) = collectTyEqs_rec tyEnv nextuvar t2 in
             let (tyT3,nextuvar3,constr3) = collectTyEqs_rec tyEnv nextuvar2 t3 in
-            let newconstr = [(tyT2, TyInt);(tyT3, TyInt)] in
+            let newconstr = [(tyT2, TyBool);(tyT3, TyBool)] in
             (TyBool, nextuvar3,
             List.concat [newconstr; constr2; constr3])
         | Sum ->
