@@ -547,9 +547,9 @@ let e8 = (LrecI("fat", "x",
 
 let e9 = LetI("myVar", Num(5), Bop(Sum,Var("myVar"), Num(5)))
 
-let e10 = Lam("myVar", TyInt, If(Bop(Eq, Var("MyVar"), Num(5)), Num(5), Num(5)))
+let e10 = Lam("myVar", TyInt, If(Bop(Eq, Var("myVar"), Num(5)), Num(5), Num(5)))
 
-let e11 = LamI("myVar", If(Bop(Eq, Var("MyVar"), Num(5)), Num(5), Num(5)))
+let e11 = LamI("myVar", If(Bop(Eq, Var("myVar"), Num(5)), Num(5), Num(5)))
 
 let e12 = Hd(Cons(Num(5), (Cons (Num(5), Nil))))
 
@@ -561,9 +561,40 @@ let ne1 = Bop(Sum,Num(5),Bool(true))
 
 let ne2 = Bop(Sum, Num(5), Nil)
 
+let ne3 = (Lrec("fat", TyBool, TyInt, "x", TyInt,
+    If(Bop(Eq, Var("x"), Num(0)),
+    Num(1),
+    Bop(Mult, Var("x"), App(Var("fat"), Bop(Diff, Var("x"), Num(1))))),
+    App(Var("fat"), Num(5))))
 
-let allEs = [e1;e2;e3;e4;e5;e6;e7;e8;e9;e12;e13;];;
-let teste = [e10;e11];;
+let ne4 = Cons(Bop(Sum,Num(5),Num(2)),(Cons(Bool(true),Nil)))
+
+let ne5 = If(IsEmpty(Nil),Num(5),Bool(false))
+
+let ne6 = If(IsEmpty((Cons (Num(5), Nil))),Bool(true),Num(5))
+
+let ne7 = Cons(Bool(true), (Cons (Num(5), Nil)))
+
+let ne8 = Let("myVar", TyBool, Num(5), Bop(Sum,Var("myVar"), Num(5)))
+
+let ne9 = (LrecI("fat", "x",
+    If(Bop(Eq, Var("x"), Num(0)),
+    Num(1),
+    Bop(Mult, Var("x"), App(Var("fat"), Bop(Diff, Var("x"), Num(1))))),
+    App(Var("fat"), Bool(true))))
+
+let ne10 = LetI("myVar", Num(5), Bop(Sum,Var("myVar"), Bool(true)))
+
+let ne11 = Lam("myVar", TyBool, If(Bop(Eq, Var("myVar"), Num(5)), Num(5), Num(5)))
+
+let ne12 = LamI("myVar", If(Bop(Eq, Var("myVar"), Bool(true)), Num(5), Num(5)))
+
+let ne13 = Hd(Cons(Bool(true), (Cons (Num(5), Nil))))
+
+let ne14 = Tl(Cons(Num(5), (Cons (Bool(true), Nil))))
+
+
+let allEs = [e1;e2;e3;e4;e5;e6;e7;e8;e9;e10;e11;e12;e13;];;
 
 let rec runAll e = match e with
   | (hd::tl) ->
@@ -584,7 +615,7 @@ let rec runAll e = match e with
 let rec runAllTests e = match e with
   | (hd::tl) ->
     (match hd with
-      | head -> eval(hd);
+      | head ->
         let tyT = typeInfer [] hd in
         print_endline "=== NEXTtt TEST ===";
         print_endline (tipoToString tyT);
@@ -592,4 +623,4 @@ let rec runAllTests e = match e with
   | [] -> ();;
 
 (*let testing = runAllTests allEs ;;*)
-let testing = runAll teste
+let testing = runAllTests [ne13]
