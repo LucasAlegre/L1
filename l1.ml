@@ -250,7 +250,7 @@ let rec listToString (lista: (tipo * tipo) list) =  match lista with
         listToString tail;
     | [] -> ();;
 
-
+exception UndeclaredVariable of string
 
 (* Only god knows *)
 let rec _recon (ctx:tyenv) nextuvar (t:expr) = match t with
@@ -356,8 +356,8 @@ let rec _recon (ctx:tyenv) nextuvar (t:expr) = match t with
   | Var(e1) ->
     (try (let term = (snd (List.find (fun (variable, _) -> String.compare variable e1 == 0) ctx)) in
     (match term with
-     | _ -> (term, nextuvar, []))) (* NÃO TENHO IDEIA DE QUAL É A REGRA PARA VAR *)
-   with _ -> (TyId("Nao achou no contexto"), nextuvar, []))
+     | _ -> (term, nextuvar, [])))
+   with _ -> raise (UndeclaredVariable "Didn't found variable in context")
   | Bop(t1,t2,t3) -> (
       (match t1 with
         | Sum ->
@@ -429,11 +429,15 @@ let unify tyEquations =
     | (tyS,tyT)::tail -> raise (UnifyFailed "Not possible to solve type equations")
   in unify_rec tyEquations
 
+
+(*** ApplySubs ***)
 (* Aplica as substituições obtidas no Unify no tipo obtido pelo collectTyEqs *)
 (* List.fold_left f a [b1; ...; bn] is f (... (f (f a b1) b2) ...) bn *)
 let applySubs tySubstitutions tyT =
   List.fold_left (fun tyS (TyId(tyX),tyC2) -> substitutionInType tyX tyC2 tyS) tyT (List.rev tySubstitutions)
 
+
+(*** TypeInfer ***)
 let typeInfer context expression = 
   let tyT, nextuvar, tyEquations = recon context expression in
     let  tySubstitutions = unify tyEquations in
