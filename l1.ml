@@ -39,6 +39,7 @@ and
 and
      tyenv = (variable * tipo) list
 
+(* Novas variáveis para a coleta de tipos *)
 type nextuvar = NextUVar of string * uvargenerator
 and uvargenerator = unit -> nextuvar
 
@@ -46,9 +47,10 @@ let uvargen =
   let rec f n () = NextUVar("?X_" ^ string_of_int n, f (n+1))
   in f 0
 
-exception NoRuleApplies of string
+(*****************************************)
 
 (* AVALIADOR BIG STEP *)
+exception NoRuleApplies of string
 let rec _eval (contexto : env) (e : expr) = ( match e with
 
     (* BS-NUM *)
@@ -175,7 +177,10 @@ let rec _eval (contexto : env) (e : expr) = ( match e with
 )
 
 let eval e = _eval [] e
+(**********************************************************)
 
+
+(** Auxiliares para testes **)
 (* Transforma um tipo em uma STRING *)
 let rec tipoToString (tp:tipo) : string =
   match tp with
@@ -250,9 +255,12 @@ let rec listToString (lista: (tipo * tipo) list) =  match lista with
         listToString tail;
     | [] -> ();;
 
+(*************************************************************)
+
+
+(**** Collect type equations ****)
 exception UndeclaredVariable of string
 
-(* Now i know *)
 let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expression with
   | App(t1,t2) ->
     let (tyT1,nextuvar1,constr1) = collectTyEqs_rec tyEnv nextuvar t1 in
@@ -280,7 +288,7 @@ let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expres
       let (tyT1,nextuvar1,constr1) = collectTyEqs_rec tyEnv nextuvar t in
       let NextUVar(tyX,nextuvar') = nextuvar1() in
       let newconstr = [(tyT1,TyList(TyId(tyX)))] in
-        ((TyId(tyX)), nextuvar',
+        (TyBool, nextuvar',
         List.concat [newconstr; constr1])
   | TryWith(t1,t2) ->
       let (tyT1,nextuvar1,constr1) = collectTyEqs_rec tyEnv nextuvar t1 in
@@ -298,7 +306,7 @@ let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expres
       let (tyT1,nextuvar1,constr1) = collectTyEqs_rec tyEnv nextuvar t1 in
       let NextUVar(tyX,nextuvar') = nextuvar1() in
       let newconstr = [(tyT1,TyList(TyId(tyX)))] in
-      ((TyId(tyX)), nextuvar',
+      (TyList((TyId(tyX))), nextuvar',
       List.concat [newconstr; constr1])
   | Cons(t1,t2) ->
       let (tyT1,nextuvar1,constr1) = collectTyEqs_rec tyEnv nextuvar t1 in
@@ -345,13 +353,13 @@ let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expres
   | Lam(v1,t1,e1) ->
       let newctx = [(v1,t1)] in
       let (tyT1,nextuvar1,constr1) = collectTyEqs_rec (List.concat [newctx;tyEnv]) nextuvar e1 in
-      (tyT1, nextuvar1,
+      (TyFn(t1,tyT1), nextuvar1,
       List.concat [constr1])
   | LamI(v1,e1) ->
       let NextUVar(tyX1,nextuvar1) = nextuvar() in
       let newctx = [(v1,TyId(tyX1))] in
       let (tyT1,nextuvar2,constr1) = collectTyEqs_rec (List.concat [newctx;tyEnv]) nextuvar1 e1 in
-      (tyT1, nextuvar2,
+      (TyFn(TyId(tyX1),tyT1), nextuvar2,
       List.concat [constr1])
   | Var(e1) ->
     (try (let term = (snd (List.find (fun (variable, _) -> String.compare variable e1 == 0) tyEnv)) in
@@ -435,8 +443,10 @@ let rec collectTyEqs_rec (tyEnv:tyenv) nextuvar (expression:expr) = match expres
         )
 )
 let collectTyEqs tyEnvironment expression = collectTyEqs_rec tyEnvironment uvargen expression
+(**********************************************************)
 
-(***** UNIFY *****)
+
+(***** Unify *****)
 exception UnifyFailed of string
 
 (* Funções auxiliares *)
@@ -510,6 +520,7 @@ let typeInfer tyEnvironment expression =
    end
 *)
 
+(* Testes que devem retornar um tipo *)
 let e1 = (Lrec("fat", TyInt, TyInt, "x", TyInt,
     If(Bop(Eq, Var("x"), Num(0)),
     Num(1),
@@ -520,17 +531,39 @@ let e2 = Cons(Bop(Sum,Num(5),Num(2)),(Cons(Num(1),Nil)))
 
 let e3 = If(IsEmpty(Nil),Bool(true),Bool(false))
 
-let e4 = Cons(Num(5), (Cons (Num(5), Nil)))
+let e4 = If(IsEmpty((Cons (Num(5), Nil))),Bool(true),Bool(false))
 
-let e5 = Let("myVar", TyInt, Num(5), Bop(Sum,Var("myVar"), Num(5)))
+let e5 = Cons(Num(5), (Cons (Num(5), Nil)))
 
-let e6 = Bop(Sum,Num(5),Bool(true))
+let e6 = Let("myVar", TyInt, Num(5), Bop(Sum,Var("myVar"), Num(5)))
 
 let e7 = Bop(Sum,Num(5),Num(10))
 
-let e8 = Bop(Sum, Num(5), Nil)
+let e8 = (LrecI("fat", "x",
+    If(Bop(Eq, Var("x"), Num(0)),
+    Num(1),
+    Bop(Mult, Var("x"), App(Var("fat"), Bop(Diff, Var("x"), Num(1))))),
+    App(Var("fat"), Num(5))))
 
-let allEs = [e1];;
+let e9 = LetI("myVar", Num(5), Bop(Sum,Var("myVar"), Num(5)))
+
+let e10 = Lam("myVar", TyInt, If(Bop(Eq, Var("MyVar"), Num(5)), Num(5), Num(5)))
+
+let e11 = LamI("myVar", If(Bop(Eq, Var("MyVar"), Num(5)), Num(5), Num(5)))
+
+let e12 = Hd(Cons(Num(5), (Cons (Num(5), Nil))))
+
+let e13 = Tl(Cons(Num(5), (Cons (Num(5), Nil))))
+
+
+(* Testes que NÂO devem retornar um tipo *)
+let ne1 = Bop(Sum,Num(5),Bool(true))
+
+let ne2 = Bop(Sum, Num(5), Nil)
+
+
+let allEs = [e1;e2;e3;e4;e5;e6;e7;e8;e9;e12;e13;];;
+let teste = [e10;e11];;
 
 let rec runAll e = match e with
   | (hd::tl) ->
@@ -539,20 +572,24 @@ let rec runAll e = match e with
         print_endline "=== NEXT TEST ===";
         listToString constr;
         print_endline "==";
-        (let tySubstitutions = unify constr in listToString tySubstitutions);
-        runAll tl)
-  | [] -> ();;
+        print_endline (tipoToString teste);
+        print_endline "==";
+        (let tySubstitutions = unify constr in listToString tySubstitutions;
+        (let tip = applySubs tySubstitutions teste in
+        print_endline "==";
+        print_endline (tipoToString tip);
+        runAll tl)))
+| [] -> ();;
 
-let rec runAll2 e = match e with
+let rec runAllTests e = match e with
   | (hd::tl) ->
     (match hd with
-      | head -> let tyT = typeInfer [] hd in
-        print_endline "=== NEXT TEST ===";
+      | head -> eval(hd);
+        let tyT = typeInfer [] hd in
+        print_endline "=== NEXTtt TEST ===";
         print_endline (tipoToString tyT);
-        runAll2 tl)
+        runAllTests tl)
   | [] -> ();;
-(*let teste = eval(e2);;
-let teste1 = print_endline(exprToString e1);;
-let (teste2, nextuvar, constr) = recon [] e5;;
-let teste3 = (listToString constr);;*)
-let testing = runAll allEs;;
+
+(*let testing = runAllTests allEs ;;*)
+let testing = runAll teste
