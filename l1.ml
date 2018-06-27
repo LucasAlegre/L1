@@ -38,6 +38,8 @@ and
      env = (variable * value) list
 and
      tyenv = (variable * tipo) list
+and
+     tyeqs = (tipo * tipo) list
 
 (* Novas variáveis para a coleta de tipos *)
 type nextuvar = NextUVar of string * uvargenerator
@@ -247,7 +249,7 @@ let rec exprToString (t:expr) : string =
   | TryWith(a,b) -> "(try" ^ (exprToString a) ^ " with " ^ (exprToString b) ^ ")"
 ;;
 
-let rec listToString (lista: (tipo * tipo) list) =  match lista with
+let rec listToString (lista: tyeqs) =  match lista with
     | (head::tail) ->
         (match head with
           | t1, t2 -> print_endline ("(" ^ (tipoToString t1) ^ " --- " ^ (tipoToString t2) ^ ")"))
@@ -425,7 +427,7 @@ exception UnifyFailed of string
 
 (* Funções auxiliares *)
 (* Substitui X por T no tipo S*)
-let substitutionInType tyX tyT tyS =
+let substitutionInType (tyX: string) (tyT: tipo) (tyS: tipo) : tipo =
   let rec subs tyS = match tyS with
     | TyList(tyS1) -> TyList(subs tyS1)
     | TyFn(tyS1, tyS2) -> TyFn(subs tyS1, subs tyS2)
@@ -435,11 +437,11 @@ let substitutionInType tyX tyT tyS =
   in subs tyS
 
 (* Chama a substituição de tyX por tyT para cada equação do conjunto*)
-let sustitutionInTyEquation tyX tyT tyEquations =
+let sustitutionInTyEquation (tyX: string) (tyT: tipo) (tyEquations: tyeqs) : tyeqs =
   List.map (fun (tyS1,tyS2) -> (substitutionInType tyX tyT tyS1, substitutionInType tyX tyT tyS2)) tyEquations
 
 (* Verifica se o tipo X ocorre em T*)
-let occurCheck tyX tyT =
+let occurCheck (tyX: string) (tyT: tipo) : bool =
   let rec occur tyT = match tyT with
     | TyList(tyT1) -> occur tyT1
     | TyFn(tyT1,tyT2) -> occur tyT1 || occur tyT2
@@ -451,7 +453,7 @@ let occurCheck tyX tyT =
 (* Função de Unify *)
 (* Recebe as equações de tipo em tyEquations e retorna as substituições de tipo*)
 (* let tySubstitutions = unify tyEquations *)
-let unify tyEquations =
+let unify (tyEquations: tyeqs) : tyeqs =
   let rec unify_rec tyEquations = match tyEquations with
     | [] -> []
     | (TyInt,TyInt) :: tail -> unify_rec tail (* Caso 1 *)
@@ -477,12 +479,12 @@ let unify tyEquations =
 (*** ApplySubs ***)
 (* Aplica as substituições obtidas no Unify no tipo obtido pelo collectTyEqs *)
 (* List.fold_left f a [b1; ...; bn] is f (... (f (f a b1) b2) ...) bn *)
-let applySubs tySubstitutions tyT =
+let applySubs (tySubstitutions: tyeqs) (tyT: tipo) : tipo =
   List.fold_left (fun tyS (TyId(tyX),tyC2) -> substitutionInType tyX tyC2 tyS) tyT (List.rev tySubstitutions)
 
 
 (*** TypeInfer ***)
-let typeInfer tyEnvironment expression =
+let typeInfer (tyEnvironment: tyenv) (expression: expr) : tipo =
   let tyT, nextuvar, tyEquations = collectTyEqs tyEnvironment expression in
     let  tySubstitutions = unify tyEquations in
       applySubs tySubstitutions tyT
